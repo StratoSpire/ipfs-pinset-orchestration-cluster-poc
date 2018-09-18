@@ -1,0 +1,73 @@
+version: '3.5'
+services:
+
+  node-store-1:
+    image: ipfs/go-ipfs:v0.4.17
+    ports:
+      - "4001:4001"
+      - "8080"
+      - "5001"
+    volumes:
+      - ./volumes/node1/staging:/export
+      - ./volumes/node1/ipfs:/data/ipfs
+
+  node-store-2:
+    image: ipfs/go-ipfs:v0.4.17
+    ports:
+      - "4001"
+      - "8080"
+      - "5001"
+    volumes:
+      - ./volumes/node2/staging:/export
+      - ./volumes/node2/ipfs:/data/ipfs
+
+  node-store-3:
+    image: ipfs/go-ipfs:v0.4.17
+    ports:
+      - "4001"
+      - "8080"
+      - "5001"
+    volumes:
+      - ./volumes/node3/staging:/export
+      - ./volumes/node3/ipfs:/data/ipfs
+
+  node-cluster-1:
+    image: ipfs/ipfs-cluster:v0.5.0
+    environment:
+      - "CLUSTER_SECRET=e814b7c43144e6287f5d86196fe85fc5703dca6dd73f192c7e2c6524c557d697"
+      - "IPFS_API=/dns4/node-store-1/tcp/5001"
+    volumes:
+      - ./volumes/node1/cluster:/data/ipfs-cluster
+    depends_on:
+      - node-store-1
+
+  node-cluster-2:
+    image: ipfs/ipfs-cluster:v0.5.0
+    environment:
+      - "CLUSTER_SECRET=e814b7c43144e6287f5d86196fe85fc5703dca6dd73f192c7e2c6524c557d697"
+      - "IPFS_API=/dns4/node-store-2/tcp/5001"
+      - NODE1_CLUSTER_MULTIADDRESS
+    command: daemon --bootstrap ${NODE1_CLUSTER_MULTIADDRESS}
+    volumes:
+      - ./volumes/node2/cluster:/data/ipfs-cluster
+    depends_on:
+      - node-store-2
+      - node-cluster-1
+
+  node-cluster-3:
+    image: ipfs/ipfs-cluster:v0.5.0
+    environment:
+      - "CLUSTER_SECRET=e814b7c43144e6287f5d86196fe85fc5703dca6dd73f192c7e2c6524c557d697"
+      - "IPFS_API=/dns4/node-store-3/tcp/5001"
+      - NODE1_CLUSTER_MULTIADDRESS
+    command: daemon --bootstrap ${NODE1_CLUSTER_MULTIADDRESS}
+    volumes:
+      - ./volumes/node3/cluster:/data/ipfs-cluster
+    depends_on:
+      - node-store-3
+      - node-cluster-1
+
+  client:
+    image: ipfs/go-ipfs:release
+    entrypoint: "/bin/sh"
+    command: -c "tail -f /dev/null"
